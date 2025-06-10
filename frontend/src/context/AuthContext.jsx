@@ -1,63 +1,50 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from '../api/axiosInstance';
+import axiosInstance from '../api/axiosInstance'; // ✅ Use the configured instance
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
-  // Load user from localStorage on mount
+  const [accessToken, setAccessToken] = useState(() => localStorage.getItem('accessToken') || null);
+
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) setUser(JSON.parse(storedUser));
-    } catch (err) {
-      console.error('Failed to parse stored user:', err);
-      setUser(null);
+    if (user && accessToken) {
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('accessToken', accessToken);
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
     }
-  }, []);
+  }, [user, accessToken]);
 
-  // Login with JWT
+  // ✅ Correct login function
   const login = async (email, password) => {
-    try {
-      const res = await axiosInstance.post('login/', { email, password });
+    const response = await axiosInstance.post('login/', { email, password });
 
-      const { access, refresh, user: userData } = res.data;
-      localStorage.setItem('accessToken', access);
-      localStorage.setItem('refreshToken', refresh);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      setUser(userData);
-      navigate('/files');
-    } catch (err) {
-      console.error('Login failed:', err.response?.data || err.message);
-      throw err;
-    }
+    const { access, user } = response.data; // assuming backend returns access token + user
+    setUser(user);
+    setAccessToken(access);
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('accessToken', access);
   };
 
-  // Logout (frontend-only for now)
-  const logout = async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-
-    try {
-      // Optional: Call backend to blacklist refresh token
-      await axiosInstance.post('logout/', { refresh: refreshToken });
-    } catch (err) {
-      console.warn('Logout API call failed (ignored):', err.response?.data || err.message);
-    }
-
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+  const logout = () => {
     setUser(null);
+    setAccessToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
     navigate('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

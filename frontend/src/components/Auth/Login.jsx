@@ -1,19 +1,22 @@
 // src/components/Auth/Login.jsx
 import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 
 const Login = () => {
   const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
-      await login(email, password);
+      await login(email, password);  // ✅ just pass email & password
+      navigate('/files');            // ✅ redirect after login
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
     }
@@ -48,7 +51,7 @@ const Login = () => {
           Login
         </button>
       </form>
-       <div style={{ marginTop: '10px' }}>
+      <div style={{ marginTop: '10px' }}>
         <Link to="/forgot-password" style={{ color: 'blue', textDecoration: 'underline' }}>
           Forgot Password?
         </Link>

@@ -16,33 +16,41 @@ const FileUpload = () => {
   };
 
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const totalSize = getTotalSizeMB(files);
+    const newFiles = Array.from(e.target.files);
+
+    const combinedFiles = [...selectedFiles, ...newFiles];
+    const totalSize = getTotalSizeMB(combinedFiles);
 
     if (totalSize > MAX_TOTAL_SIZE_MB) {
       setError(`Total file size exceeds ${MAX_TOTAL_SIZE_MB} MB.`);
-      setSelectedFiles([]);
     } else {
       setError(null);
-      setSelectedFiles(files);
+      setSelectedFiles(combinedFiles);
     }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    const totalSize = getTotalSizeMB(files);
+    const newFiles = Array.from(e.dataTransfer.files);
+
+    const combinedFiles = [...selectedFiles, ...newFiles];
+    const totalSize = getTotalSizeMB(combinedFiles);
 
     if (totalSize > MAX_TOTAL_SIZE_MB) {
       setError(`Total file size exceeds ${MAX_TOTAL_SIZE_MB} MB.`);
-      setSelectedFiles([]);
     } else {
       setError(null);
-      setSelectedFiles(files);
+      setSelectedFiles(combinedFiles);
     }
   };
 
   const handleDragOver = (e) => e.preventDefault();
+
+  const handleRemoveFile = (index) => {
+    const updatedFiles = selectedFiles.filter((_, i) => i !== index);
+    setSelectedFiles(updatedFiles);
+    setError(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,11 +59,19 @@ const FileUpload = () => {
       return;
     }
 
+    const totalSize = getTotalSizeMB(selectedFiles);
+    if (totalSize > MAX_TOTAL_SIZE_MB) {
+      setError(`Total file size exceeds ${MAX_TOTAL_SIZE_MB} MB.`);
+      return;
+    }
+
     setUploading(true);
     setError(null);
 
     const formData = new FormData();
-    selectedFiles.forEach(file => formData.append('files[]', file));
+    selectedFiles.forEach((file) => {
+      formData.append('files[]', file);
+    });
 
     try {
       await axiosInstance.post('files/upload/', formData, {
@@ -102,6 +118,20 @@ const FileUpload = () => {
             {selectedFiles.map((f, idx) => (
               <li key={idx}>
                 {f.name} ({(f.size / (1024 * 1024)).toFixed(2)} MB)
+                <button
+                  onClick={() => handleRemoveFile(idx)}
+                  style={{
+                    marginLeft: '1rem',
+                    padding: '0.2rem 0.5rem',
+                    background: '#e74c3c',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
@@ -111,7 +141,15 @@ const FileUpload = () => {
       <button
         onClick={handleSubmit}
         disabled={uploading || getTotalSizeMB(selectedFiles) > MAX_TOTAL_SIZE_MB}
-        style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}
+        style={{
+          marginTop: '1rem',
+          padding: '0.5rem 1rem',
+          background: uploading ? '#aaa' : '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: uploading ? 'not-allowed' : 'pointer',
+        }}
       >
         {uploading ? 'Uploading...' : 'Upload'}
       </button>
